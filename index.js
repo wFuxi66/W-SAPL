@@ -9,7 +9,7 @@ const client = new Client({
     ],
 });
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
@@ -23,3 +23,11 @@ client.on('messageCreate', (message) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
+// Add a dummy Express server to pass Render's health checks for Free Web Services
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (req, res) => res.send('W SAPL Discord Bot is running!'));
+app.listen(port, () => console.log(`Web server listening on port ${port}!`));
