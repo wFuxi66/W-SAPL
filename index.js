@@ -9,6 +9,8 @@ process.on('unhandledRejection', (reason) => {
 
 process.on('uncaughtException', (err) => {
     console.error('[Uncaught Exception]', err);
+    // Attempt to cleanly disconnect before exiting so the host can restart
+    client.destroy();
     process.exit(1);
 });
 
@@ -56,9 +58,8 @@ console.log(`[Debug] Token found: ${!!token}, Length: ${token?.length || 0}`);
 if (token) {
     client.login(token).catch(err => {
         console.error('[Login Error]', err.message);
-        // Exit so the host process manager (Render) can restart the service.
-        // Non-retryable auth errors (TOKEN_INVALID) will keep failing until the
-        // token is corrected in the environment variables.
+        // Exit so the host process manager (Render) restarts the service.
+        // If the token is invalid, correct DISCORD_TOKEN in the environment variables.
         process.exit(1);
     });
 } else {
