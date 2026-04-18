@@ -13,7 +13,7 @@ const client = new Client({
 
 const TRIGGER = /\bw sapl\b/i;
 
-client.once('ready', (c) => {
+client.once('clientReady', (c) => {
   console.log(`Logged in as ${c.user.tag}`);
 });
 
