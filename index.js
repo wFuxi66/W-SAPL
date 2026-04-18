@@ -19,7 +19,8 @@ client.once('clientReady', (c) => {
 
 client.on('messageCreate', async (msg) => {
   if (msg.author.bot) return;
-  if (!TRIGGER.test(msg.content)) return;
+  const pinged = client.user && msg.mentions.has(client.user);
+  if (!pinged && !TRIGGER.test(msg.content)) return;
   try {
     await msg.reply('W SAPL');
   } catch (err) {
