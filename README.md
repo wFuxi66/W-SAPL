@@ -30,7 +30,13 @@ Replies `W SAPL` to any message containing `w sapl` (case-insensitive), or when 
 
 The console should show `Logged in as W SAPL#xxxx`.
 
-`discloud.config` sets `AUTORESTART=true`, so Discloud should restart the process if Node crashes. If the app is still stopped by the free host itself, move the bot to a paid always-on host/VPS or a free provider that explicitly promises no suspension.
+`discloud.config` sets `AUTORESTART=true`, but Discloud only applies automatic crash restart on supported paid plans. You can verify the deployed value with:
+
+```bash
+discloud app info 1776506693689
+```
+
+If Discloud reports `autoRestart=false`, the setting is not active for the deployed app. A free Discloud bot can still be suspended by host policy, so true 24/7 uptime requires a paid Discloud plan that enables auto-restart, or moving the bot to an always-on VPS/process host.
 
 ## Local test
 
