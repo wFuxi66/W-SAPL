@@ -38,6 +38,20 @@ discloud app info 1776506693689
 
 If Discloud reports `autoRestart=false`, the setting is not active for the deployed app. A free Discloud bot can still be suspended by host policy, so true 24/7 uptime requires a paid Discloud plan that enables auto-restart, or moving the bot to an always-on VPS/process host.
 
+## Watchdog
+
+The GitHub Actions watchdog in `.github/workflows/discloud-watchdog.yml` checks Discloud every 5 minutes and requests a restart when the container is not `Online`.
+
+To enable it:
+
+1. Open the GitHub repo settings.
+2. Go to **Secrets and variables** -> **Actions** -> **New repository secret**.
+3. Add `DISCLOUD_TOKEN` with your Discloud API token from the Discloud dashboard.
+4. Push this repo to GitHub.
+5. In the **Actions** tab, run **Discloud watchdog** manually once to verify it.
+
+This is a watchdog, not a hard uptime guarantee. GitHub scheduled workflows can be delayed, and Discloud free-plan policy can still stop the app again later, but the workflow should wake it automatically on the next scheduled check.
+
 ## Local test
 
 Requires Node.js 18+.
