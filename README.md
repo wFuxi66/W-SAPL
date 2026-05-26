@@ -40,17 +40,35 @@ If Discloud reports `autoRestart=false`, the setting is not active for the deplo
 
 ## Watchdog
 
-The GitHub Actions watchdog in `.github/workflows/discloud-watchdog.yml` checks Discloud every 5 minutes and requests a restart when the container is not `Online`.
+The primary watchdog is a Cloudflare Worker in `workers/discloud-watchdog`. It runs every minute, checks the Discloud app status, and requests a restart when the container is not `Online`.
 
-To enable it:
+It also uses Workers KV as a 5-minute cooldown lock so Discloud is not spammed while the app is starting.
 
-1. Open the GitHub repo settings.
-2. Go to **Secrets and variables** -> **Actions** -> **New repository secret**.
-3. Add `DISCLOUD_TOKEN` with your Discloud API token from the Discloud dashboard.
-4. Push this repo to GitHub.
-5. In the **Actions** tab, run **Discloud watchdog** manually once to verify it.
+### Deploy the Cloudflare watchdog
 
-This is a watchdog, not a hard uptime guarantee. GitHub scheduled workflows can be delayed, and Discloud free-plan policy can still stop the app again later, but the workflow should wake it automatically on the next scheduled check.
+Requires Node.js 18+ and a Cloudflare account.
+
+```bash
+cd workers/discloud-watchdog
+npx wrangler login
+npx wrangler kv namespace create WATCHDOG_STATE
+```
+
+Copy the returned namespace `id` into `wrangler.toml`, replacing `REPLACE_WITH_KV_NAMESPACE_ID`.
+
+Then add the Discloud API token as a Cloudflare Worker secret:
+
+```bash
+npx wrangler secret put DISCLOUD_TOKEN
+```
+
+Finally deploy:
+
+```bash
+npx wrangler deploy
+```
+
+The old GitHub Actions watchdog is kept as a manual fallback in `.github/workflows/discloud-watchdog.yml`, but GitHub scheduled workflows are not reliable enough for the primary wake-up loop.
 
 ## Local test
 
