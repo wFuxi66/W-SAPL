@@ -11,7 +11,7 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-const TRIGGER = /\bw sapl\b/i;
+const TRIGGER = /\bw\s+\S+/i;
 
 client.once('clientReady', (c) => {
   console.log(`Logged in as ${c.user.tag}`);

@@ -1,6 +1,6 @@
 # W SAPL Bot
 
-Replies `W SAPL` to any message containing `w sapl` (case-insensitive), or when the bot is mentioned.
+Replies `W SAPL` to any message containing `w <someone>` (case-insensitive), or when the bot is mentioned.
 
 ## Setup
 
