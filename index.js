@@ -76,7 +76,21 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-client.login(token).catch((err) => {
-  console.error('discord login failed:', err);
-  process.exit(1);
-});
+async function loginWithRetry(maxAttempts = 10, delayMs = 15000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await client.login(token);
+      return;
+    } catch (err) {
+      const retryable = err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.message?.includes('timeout') || err.message?.includes('ECONNREFUSED');
+      if (!retryable || attempt === maxAttempts) {
+        console.error(`discord login failed (attempt ${attempt}):`, err);
+        process.exit(1);
+      }
+      console.warn(`discord login attempt ${attempt} timed out, retrying in ${delayMs / 1000}s...`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
+loginWithRetry();
