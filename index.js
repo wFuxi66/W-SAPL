@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Options } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -9,6 +9,29 @@ const client = new Client({
     GatewayIntentBits.DirectMessages,
   ],
   partials: [Partials.Channel],
+  makeCache: Options.cacheWithLimits({
+    MessageManager: 0,
+    GuildMemberManager: 0,
+    UserManager: 0,
+    PresenceManager: 0,
+    ReactionManager: 0,
+    ReactionUserManager: 0,
+    VoiceStateManager: 0,
+    GuildEmojiManager: 0,
+    GuildStickerManager: 0,
+    GuildBanManager: 0,
+    GuildScheduledEventManager: 0,
+    StageInstanceManager: 0,
+    ThreadManager: 0,
+    ThreadMemberManager: 0,
+    GuildForumThreadManager: 0,
+    GuildTextThreadManager: 0,
+  }),
+  sweepers: {
+    ...Options.DefaultSweeperSettings,
+    messages: { interval: 60, lifetime: 120 },
+    guildMembers: { interval: 120, lifetime: 300 },
+  },
 });
 
 const TRIGGER = /\bw\s+\S+/i;
