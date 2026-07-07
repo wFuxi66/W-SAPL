@@ -1,12 +1,10 @@
-require('dotenv').config();
-const WebSocket = require('ws');
-
 const TOKEN = process.env.DISCORD_TOKEN;
 if (!TOKEN) {
   console.error('DISCORD_TOKEN env var is missing');
   process.exit(1);
 }
 
+const WebSocket = require('ws');
 const GATEWAY = 'wss://gateway.discord.gg/?v=10&encoding=json';
 const REST = 'https://discord.com/api/v10';
 const INTENTS = 1 << 0 | 1 << 9 | 1 << 12 | 1 << 15;
@@ -14,7 +12,6 @@ const INTENTS = 1 << 0 | 1 << 9 | 1 << 12 | 1 << 15;
 let ws;
 let heartbeatTimer;
 let seq;
-let sessionId;
 let botId;
 let reconnectAttempts = 0;
 
@@ -59,7 +56,6 @@ function connect() {
 
       case 0:
         if (t === 'READY') {
-          sessionId = d.session_id;
           botId = d.user.id;
           console.log(`logged in as ${d.user.username}`);
         } else if (t === 'MESSAGE_CREATE') {
