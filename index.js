@@ -1,86 +1,108 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Options } = require('discord.js');
+const WebSocket = require('ws');
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages,
-  ],
-  partials: [Partials.Channel],
-  makeCache: Options.cacheWithLimits({
-    MessageManager: 0,
-    GuildMemberManager: 0,
-    UserManager: 0,
-    PresenceManager: 0,
-    ReactionManager: 0,
-    ReactionUserManager: 0,
-    VoiceStateManager: 0,
-    GuildEmojiManager: 0,
-    GuildStickerManager: 0,
-    GuildBanManager: 0,
-    GuildScheduledEventManager: 0,
-    StageInstanceManager: 0,
-    ThreadManager: 0,
-    ThreadMemberManager: 0,
-    GuildForumThreadManager: 0,
-    GuildTextThreadManager: 0,
-    GuildManager: 0,
-    ChannelManager: 0,
-  }),
-  sweepers: {
-    ...Options.DefaultSweeperSettings,
-    messages: { interval: 60, lifetime: 120 },
-    guildMembers: { interval: 120, lifetime: 300 },
-  },
-});
-
-const TRIGGER = /\bw\s+\S+/i;
-
-client.once('clientReady', (c) => {
-  console.log(`Logged in as ${c.user.tag}`);
-});
-
-client.on('error', (err) => {
-  console.error('discord client error:', err);
-});
-
-client.on('warn', (message) => {
-  console.warn('discord client warning:', message);
-});
-
-client.on('shardDisconnect', (event, shardId) => {
-  console.warn(`discord shard ${shardId} disconnected: code=${event.code} reason=${event.reason || 'none'}`);
-});
-
-client.on('shardReconnecting', (shardId) => {
-  console.warn(`discord shard ${shardId} reconnecting`);
-});
-
-client.on('shardResume', (shardId, replayedEvents) => {
-  console.log(`discord shard ${shardId} resumed (${replayedEvents} replayed events)`);
-});
-
-client.on('messageCreate', async (msg) => {
-  if (msg.author.bot) return;
-  const pinged = client.user && msg.mentions.has(client.user);
-  if (!pinged && !TRIGGER.test(msg.content)) return;
-  try {
-    await msg.reply('W SAPL');
-  } catch (err) {
-    console.error('reply failed:', err.message);
-  }
-});
-
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
+const TOKEN = process.env.DISCORD_TOKEN;
+if (!TOKEN) {
   console.error('DISCORD_TOKEN env var is missing');
   process.exit(1);
 }
 
+const GATEWAY = 'wss://gateway.discord.gg/?v=10&encoding=json';
+const REST = 'https://discord.com/api/v10';
+const INTENTS = 1 << 0 | 1 << 9 | 1 << 12 | 1 << 15;
+
+let ws;
+let heartbeatTimer;
+let seq;
+let sessionId;
+let botId;
+let reconnectAttempts = 0;
+
+async function send(channelId, content, replyId) {
+  const body = { content };
+  if (replyId) body.message_reference = { message_id: replyId };
+  const res = await fetch(`${REST}/channels/${channelId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bot ${TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) console.error('send failed:', res.status, await res.text().catch(() => ''));
+}
+
+function connect() {
+  ws = new WebSocket(GATEWAY);
+
+  ws.on('open', () => {
+    console.log('connected to gateway');
+  });
+
+  ws.on('message', (raw) => {
+    const { op, d, s, t } = JSON.parse(raw.toString());
+    if (s) seq = s;
+
+    switch (op) {
+      case 10:
+        heartbeatTimer = setInterval(() => ws.send(JSON.stringify({ op: 1, d: seq })), d.heartbeat_interval);
+        ws.send(JSON.stringify({
+          op: 2,
+          d: {
+            token: TOKEN,
+            intents: INTENTS,
+            properties: { os: 'linux', browser: 'w-sapl', device: 'w-sapl' },
+          },
+        }));
+        reconnectAttempts = 0;
+        break;
+
+      case 0:
+        if (t === 'READY') {
+          sessionId = d.session_id;
+          botId = d.user.id;
+          console.log(`logged in as ${d.user.username}`);
+        } else if (t === 'MESSAGE_CREATE') {
+          onMessage(d);
+        }
+        break;
+
+      case 7:
+      case 9:
+        cleanup();
+        setTimeout(connect, 1000);
+        break;
+    }
+  });
+
+  ws.on('close', () => {
+    cleanup();
+    const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
+    reconnectAttempts++;
+    setTimeout(connect, delay);
+  });
+
+  ws.on('error', (err) => {
+    console.error('gateway error:', err.message);
+  });
+}
+
+function cleanup() {
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = null;
+}
+
+const TRIGGER = /\bw\s+\S+/i;
+
+function onMessage(d) {
+  if (d.author?.bot) return;
+  const isPinged = botId && d.mentions?.some((m) => m.id === botId);
+  if (!isPinged && !TRIGGER.test(d.content)) return;
+  send(d.channel_id, 'W SAPL', d.id).catch((err) => console.error('reply failed:', err.message));
+}
+
 process.on('unhandledRejection', (err) => {
-  console.error('unhandled promise rejection:', err);
+  console.error('unhandled rejection:', err);
 });
 
 process.on('uncaughtException', (err) => {
@@ -89,32 +111,15 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('SIGTERM', () => {
-  console.warn('received SIGTERM, destroying Discord client before shutdown');
-  client.destroy();
+  cleanup();
+  ws?.close();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.warn('received SIGINT, destroying Discord client before shutdown');
-  client.destroy();
+  cleanup();
+  ws?.close();
   process.exit(0);
 });
 
-async function loginWithRetry(maxAttempts = 10, delayMs = 15000) {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      await client.login(token);
-      return;
-    } catch (err) {
-      const retryable = err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.message?.includes('timeout') || err.message?.includes('ECONNREFUSED');
-      if (!retryable || attempt === maxAttempts) {
-        console.error(`discord login failed (attempt ${attempt}):`, err);
-        process.exit(1);
-      }
-      console.warn(`discord login attempt ${attempt} timed out, retrying in ${delayMs / 1000}s...`);
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-  }
-}
-
-loginWithRetry();
+connect();
