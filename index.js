@@ -26,6 +26,8 @@ const client = new Client({
     ThreadMemberManager: 0,
     GuildForumThreadManager: 0,
     GuildTextThreadManager: 0,
+    GuildManager: 0,
+    ChannelManager: 0,
   }),
   sweepers: {
     ...Options.DefaultSweeperSettings,
@@ -79,7 +81,6 @@ if (!token) {
 
 process.on('unhandledRejection', (err) => {
   console.error('unhandled promise rejection:', err);
-  process.exit(1);
 });
 
 process.on('uncaughtException', (err) => {
