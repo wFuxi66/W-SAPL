@@ -14,6 +14,7 @@ let heartbeatTimer;
 let seq;
 let botId;
 let reconnectAttempts = 0;
+let reconnectTimer;
 
 async function send(channelId, content, replyId) {
   const body = { content };
@@ -30,13 +31,24 @@ async function send(channelId, content, replyId) {
 }
 
 function connect() {
-  ws = new WebSocket(GATEWAY);
+  clearTimeout(reconnectTimer);
+  cleanup();
+  if (ws) {
+    ws._close = true;
+    ws.close(1000);
+    ws = null;
+  }
 
-  ws.on('open', () => {
+  const conn = new WebSocket(GATEWAY);
+  ws = conn;
+
+  conn.on('open', () => {
+    if (conn !== ws) return;
     console.log('connected to gateway');
   });
 
-  ws.on('message', (raw) => {
+  conn.on('message', (raw) => {
+    if (conn !== ws) return;
     let op, d, s, t;
     try {
       ({ op, d, s, t } = JSON.parse(raw.toString()));
@@ -47,8 +59,8 @@ function connect() {
 
     switch (op) {
       case 10:
-        heartbeatTimer = setInterval(() => ws.send(JSON.stringify({ op: 1, d: seq })), d.heartbeat_interval);
-        ws.send(JSON.stringify({
+        heartbeatTimer = setInterval(() => { if (conn === ws) conn.send(JSON.stringify({ op: 1, d: seq })); }, d.heartbeat_interval);
+        conn.send(JSON.stringify({
           op: 2,
           d: {
             token: TOKEN,
@@ -70,13 +82,13 @@ function connect() {
 
       case 7:
       case 9:
-        cleanup();
-        setTimeout(connect, 1000);
+        connect();
         break;
     }
   });
 
-  ws.on('close', (code) => {
+  conn.on('close', (code) => {
+    if (conn !== ws) return;
     cleanup();
     if (code === 4004 || code === 4005) {
       console.error('fatal gateway close code', code, '- not reconnecting');
@@ -84,10 +96,11 @@ function connect() {
     }
     const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
     reconnectAttempts++;
-    setTimeout(connect, delay);
+    reconnectTimer = setTimeout(connect, delay);
   });
 
-  ws.on('error', (err) => {
+  conn.on('error', (err) => {
+    if (conn !== ws) return;
     console.error('gateway error:', err.message);
   });
 }
@@ -95,6 +108,8 @@ function connect() {
 function cleanup() {
   clearInterval(heartbeatTimer);
   heartbeatTimer = null;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
 }
 
 const TRIGGER = /\bw\s+\S+/i;
