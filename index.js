@@ -37,7 +37,12 @@ function connect() {
   });
 
   ws.on('message', (raw) => {
-    const { op, d, s, t } = JSON.parse(raw.toString());
+    let op, d, s, t;
+    try {
+      ({ op, d, s, t } = JSON.parse(raw.toString()));
+    } catch {
+      return;
+    }
     if (s) seq = s;
 
     switch (op) {
@@ -71,8 +76,12 @@ function connect() {
     }
   });
 
-  ws.on('close', () => {
+  ws.on('close', (code) => {
     cleanup();
+    if (code === 4004 || code === 4005) {
+      console.error('fatal gateway close code', code, '- not reconnecting');
+      return;
+    }
     const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
     reconnectAttempts++;
     setTimeout(connect, delay);
@@ -93,7 +102,7 @@ const TRIGGER = /\bw\s+\S+/i;
 function onMessage(d) {
   if (d.author?.bot) return;
   const isPinged = botId && d.mentions?.some((m) => m.id === botId);
-  if (!isPinged && !TRIGGER.test(d.content)) return;
+  if (!isPinged && !TRIGGER.test(d.content ?? '')) return;
   send(d.channel_id, 'W SAPL', d.id).catch((err) => console.error('reply failed:', err.message));
 }
 
