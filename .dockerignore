@@ -1,0 +1,12 @@
+node_modules/
+.git/
+.gitignore
+.env*
+discloud.config
+.discloudignore
+README.md
+scripts/
+workers/
+*.log
+.wrangler/
+.dev.vars*
