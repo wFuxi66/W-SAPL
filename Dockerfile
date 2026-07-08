@@ -7,4 +7,4 @@ FROM node:22-alpine
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY index.js .
-CMD ["node", "index.js"]
+CMD node -e "console.log('BOT_STARTING'); process.env.DISCORD_TOKEN ? console.log('TOKEN_PRESENT') : console.log('TOKEN_MISSING');" && node index.js
