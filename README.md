@@ -18,18 +18,17 @@ Replies `W SAPL` to any message containing `w <someone>` (case-insensitive), or 
 3. Bot permissions: check `Send Messages` and `Read Message History`
 4. Copy the generated URL, open it in your browser, and authorize
 
-### 3. Deploy to Coolify
+### 3. Deploy to Dokploy
 
 1. Push the repo to your Git provider
-2. In Coolify, create a new resource and select the repo
-3. Coolify auto-detects the `Dockerfile` — build pack stays as **Dockerfile**
-4. Add an environment variable:
+2. In Dokploy, create a new application with type **Docker Compose** and select the repo — Dokploy uses the `docker-compose.yml` at the repo root
+3. In the **Environment** tab, add:
    - Key: `DISCORD_TOKEN`
    - Value: the token from step 1
-5. No ports to expose (the bot connects outbound, it doesn't listen for HTTP)
-6. **Deploy**
+4. No ports or domains to configure (the bot connects outbound, it doesn't listen for HTTP)
+5. **Deploy**
 
-Coolify automatically restarts the container on crash — no external watchdog needed.
+The compose file sets `restart: unless-stopped`, so the container restarts automatically on crash — no external watchdog needed.
 
 ## Local test
 
