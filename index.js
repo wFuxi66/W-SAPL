@@ -113,9 +113,14 @@ function cleanup() {
 }
 
 const TRIGGER = /\bw\s+\S+/i;
+const SAPL_ID = '395997220026974209';
+const SAPL_GIF = 'https://tenor.com/view/cats-plushies-watermelon-squish-cats-getting-squished-by-watermelon-gif-14346272645866183349';
 
 function onMessage(d) {
   if (d.author?.bot) return;
+  if (d.mentions?.some((m) => m.id === SAPL_ID)) {
+    send(d.channel_id, SAPL_GIF, d.id).catch((err) => console.error('reply failed:', err.message));
+  }
   const isPinged = botId && d.mentions?.some((m) => m.id === botId);
   if (!isPinged && !TRIGGER.test(d.content ?? '')) return;
   send(d.channel_id, 'W SAPL', d.id).catch((err) => console.error('reply failed:', err.message));
